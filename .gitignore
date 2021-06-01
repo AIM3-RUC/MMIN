@@ -1,0 +1,15 @@
+.vscode
+__pycache__
+analysis/backup
+analysis/cm
+analysis/svm_report
+analysis/tsne
+checkpoints
+checkpoints_msp
+logs
+auto/scripts
+auto/results
+auto/tmp
+*.pyc
+preprocess/.tmp
+preprocess/smile.log
