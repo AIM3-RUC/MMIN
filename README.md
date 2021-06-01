@@ -15,12 +15,12 @@ First you should change the data folder path in ```data/config``` and preprocess
 
 For Training MMIN on IEMOCAP:
 ```bash
-bash scripts/mmin.sh
+bash scripts/mmin.sh [num_of_expr] [GPU_index]
 ```
 
-For Training MMIN on MSP-improv:
+For Training MMIN on MSP-improv: 
 ```
-bash scripts/mmin_msp.sh
+bash scripts/mmin_msp.sh [num_of_expr] [GPU_index]
 ```
 
 Note that you can run the code with default hyper-parameters defined in shell scripts, for changing these arguments, please refer to options/train_opt.py and the ```modify_commandline_options``` method of each model you choose.
