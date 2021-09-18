@@ -67,7 +67,7 @@ class MultimodalDataset(BaseDataset):
             A_feat = self.normalize_on_utt(A_feat) if self.norm_method == 'utt' else self.normalize_on_trn(A_feat)
         # process V_feat 
         V_feat = torch.from_numpy(self.all_V[int2name][()]).float()
-        # proveee L_feat
+        # process L_feat
         L_feat = torch.from_numpy(self.all_L[int2name][()]).float()
         return {
             'A_feat': A_feat, 

@@ -15,7 +15,7 @@ class UttFusionModel(BaseModel):
     def modify_commandline_options(parser, is_train=True):
         parser.add_argument('--input_dim_a', type=int, default=130, help='acoustic input dim')
         parser.add_argument('--input_dim_l', type=int, default=1024, help='lexical input dim')
-        parser.add_argument('--input_dim_v', type=int, default=384, help='lexical input dim')
+        parser.add_argument('--input_dim_v', type=int, default=384, help='visual input dim')
         parser.add_argument('--embd_size_a', default=128, type=int, help='audio model embedding size')
         parser.add_argument('--embd_size_l', default=128, type=int, help='text model embedding size')
         parser.add_argument('--embd_size_v', default=128, type=int, help='visual model embedding size')

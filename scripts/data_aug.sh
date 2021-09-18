@@ -14,7 +14,7 @@ cmd="python train_miss.py --dataset_mode=multimodal_miss --model=uttf_dataaug
 --output_dim=4 --cls_layers=128,128 --dropout_rate=0.5
 --niter=20 --niter_decay=20 --beta1=0.9 --init_type kaiming
 --batch_size=128 --lr=1e-4 --run_idx=$run_idx --modality=AVL
---name=data_aug --suffix=run{run_idx} --has_test
+--name=data_aug_test --suffix=run{run_idx} --has_test --verbose
 --cvNo=$i"
 
 
