@@ -27,6 +27,8 @@ Note that you can run the code with default hyper-parameters defined in shell sc
 
 # Download the features
 Baidu Yun Link
+IEMOCAP A V L modality Features
+链接: https://pan.baidu.com/s/1WmuqNlvcs5XzLKfz5i4iqQ 提取码: gn6w 
 
 # License
 
