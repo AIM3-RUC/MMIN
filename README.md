@@ -25,6 +25,9 @@ bash scripts/mmin_msp.sh [num_of_expr] [GPU_index]
 
 Note that you can run the code with default hyper-parameters defined in shell scripts, for changing these arguments, please refer to options/train_opt.py and the ```modify_commandline_options``` method of each model you choose.
 
+# Download the features
+Baidu Yun Link
+
 # License
 
 # Citation
