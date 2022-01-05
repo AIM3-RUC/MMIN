@@ -6,7 +6,7 @@ import data
 import json
 
 
-class BaseOptions():
+class Options():
     """This class defines options used during both training and test time.
 
     It also implements several helper functions such as parsing, printing, and saving the options.
@@ -26,27 +26,42 @@ class BaseOptions():
         parser.add_argument('--log_dir', type=str, default='./logs', help='logs are saved here')
         parser.add_argument('--cuda_benchmark', action='store_true', help='use torch cudnn benchmark')
         parser.add_argument('--has_test', action='store_true', help='whether have test. for 10 fold there is test setting, but in 5 fold there is no test')
+        
         # model parameters
-        parser.add_argument('--model', type=str, default='autoencoder', help='chooses which model to use. [autoencoder | siamese | emotion_A]')
+        parser.add_argument('--model', type=str, default='mmin', help='chooses which model to use. [autoencoder | siamese | emotion_A]')
         parser.add_argument('--norm', type=str, default='instance', help='instance normalization or batch normalization [instance | batch | none]')
         parser.add_argument('--weight_decay', type=float, default=0.0, help='weight decay when training')
-        parser.add_argument('--init_type', type=str, default='normal', help='network initialization [normal | xavier | kaiming | orthogonal]')
-        parser.add_argument('--init_gain', type=float, default=0.02, help='scaling factor for normal, xavier and orthogonal.')
-        parser.add_argument('--no_dropout', action='store_true', help='no dropout for the generator')
+        parser.add_argument('--init_type', type=str, default='kaiming', help='network initialization [normal | xavier | kaiming | orthogonal]')
+        parser.add_argument('--init_gain', type=float, default=0.012, help='scaling factor for normal, xavier and orthogonal.')
         
         # dataset parameters
-        parser.add_argument('--dataset_mode', type=str, default='iemocap', help='chooses how datasets are loaded. [iemocap, ami, mix]')
+        parser.add_argument('--dataset_mode', type=str, default='multimodal', help='chooses how datasets are loaded. [iemocap, ami, mix]')
         parser.add_argument('--num_threads', default=0, type=int, help='# threads for loading data')
-        parser.add_argument('--batch_size', type=int, default=256, help='input batch size')
+        parser.add_argument('--batch_size', type=int, default=128, help='input batch size')
         parser.add_argument('--serial_batches', action='store_true', help='if true, takes images in order to make batches, otherwise takes them randomly')
         parser.add_argument('--max_dataset_size', type=int, default=float("inf"), help='Maximum number of samples allowed per dataset. If the dataset directory contains more than max_dataset_size, only a subset is loaded.')
 
         # additional parameters
         parser.add_argument('--epoch', type=str, default='latest', help='which epoch to load? set to latest to use latest cached model')
-        parser.add_argument('--load_iter', type=int, default='0', help='which iteration to load? if load_iter > 0, the code will load models by iter_[load_iter]; otherwise, the code will load models by [epoch]')
         parser.add_argument('--verbose', action='store_true', help='if specified, print more debugging information')
         parser.add_argument('--suffix', default='', type=str, help='customized suffix: opt.name = opt.name + suffix: e.g., {model}_{netG}_size{load_size}')
         
+        ## training parameter
+        parser.add_argument('--print_freq', type=int, default=100, help='frequency of showing training results on console')
+        parser.add_argument('--save_epoch_freq', type=int, default=1, help='frequency of saving checkpoints at the end of epochs')
+        parser.add_argument('--continue_train', action='store_true', help='continue training: load the latest model')
+        parser.add_argument('--epoch_count', type=int, default=1, help='the starting epoch count, we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>, ...')
+        parser.add_argument('--phase', type=str, default='train', help='train, val, test, etc')
+        parser.add_argument('--niter', type=int, default=20, help='# of iter at starting learning rate')
+        parser.add_argument('--niter_decay', type=int, default=80, help='# of iter to linearly decay learning rate to zero')
+        parser.add_argument('--beta1', type=float, default=0.5, help='momentum term of adam')
+        parser.add_argument('--lr', type=float, default=2e-4, help='initial learning rate for adam')
+        parser.add_argument('--lr_policy', type=str, default='linear', help='learning rate policy. [linear | step | plateau | cosine]')
+        parser.add_argument('--lr_decay_iters', type=int, default=50, help='multiply by a gamma every lr_decay_iters iterations')
+
+        # expr setting 
+        parser.add_argument('--run_idx', type=int, default=1, help='experiment number; for repeat experiment')
+        self.isTrain = True
         self.initialized = True
         return parser
 

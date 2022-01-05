@@ -5,8 +5,9 @@ analysis/cm
 analysis/svm_report
 analysis/tsne
 checkpoints
-checkpoints_msp
+checkpoints*
 logs
+logs*
 auto/scripts
 auto/results
 auto/tmp

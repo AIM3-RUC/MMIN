@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from opts.train_opts import TrainOptions
+from opts.get_opts import Options
 from data import create_dataset_with_args
 from models import create_model
 from utils.logger import get_logger, ResultRecorder
@@ -48,12 +48,13 @@ def clean_chekpoints(expr_name, store_epoch):
             os.remove(os.path.join(root, checkpoint))
 
 if __name__ == '__main__':
-    opt = TrainOptions().parse()                        # get training options
+    opt = Options().parse()                        # get training options
     logger_path = os.path.join(opt.log_dir, opt.name, str(opt.cvNo)) # get logger path
     if not os.path.exists(logger_path):                 # make sure logger path exists
         os.mkdir(logger_path)
 
-    result_recorder = ResultRecorder(os.path.join(opt.log_dir, opt.name, 'result.tsv'), total_cv=12) # init result recoreder
+    total_cv = 10 if opt.corpus_name == 'IEMOCAP' else 12
+    result_recorder = ResultRecorder(os.path.join(opt.log_dir, opt.name, 'result.tsv'), total_cv=total_cv) # init result recoreder
     suffix = '_'.join([opt.model, opt.dataset_mode])    # get logger suffix
     logger = get_logger(logger_path, suffix)            # get logger
     if opt.has_test:                                    # create a dataset given opt.dataset_mode and other options
@@ -66,8 +67,7 @@ if __name__ == '__main__':
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
     total_iters = 0                # the total number of training iterations
-    best_eval_uar = 0              # record the best eval UAR
-    best_epoch_acc, best_epoch_f1 = 0, 0
+    best_eval_acc, best_eval_uar, best_eval_f1 = 0, 0, 0
     best_eval_epoch = -1           # record the best eval epoch
 
     for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
@@ -88,11 +88,6 @@ if __name__ == '__main__':
                 logger.info('Cur epoch {}'.format(epoch) + ' loss ' + 
                         ' '.join(map(lambda x:'{}:{{{}:.4f}}'.format(x, x), model.loss_names)).format(**losses))
 
-            if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
-                logger.info('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
-                save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
-                model.save_networks(save_suffix)
-
             iter_data_time = time.time()
         if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
             logger.info('saving the model at the end of epoch %d, iters %d' % (epoch, total_iters))
@@ -102,30 +97,39 @@ if __name__ == '__main__':
         logger.info('End of training epoch %d / %d \t Time Taken: %d sec' % (epoch, opt.niter + opt.niter_decay, time.time() - epoch_start_time))
         model.update_learning_rate(logger)                     # update learning rates at the end of every epoch.
 
-        # eval trn set
-        # acc, uar, f1, cm = eval(model, dataset)
-        # logger.info('Trn result of epoch %d / %d acc %.4f uar %.4f f1 %.4f' % (epoch, opt.niter + opt.niter_decay, acc, uar, f1))
-        # logger.info('\n{}'.format(cm))
-
         # eval val set
         acc, uar, f1, cm = eval(model, val_dataset)
         logger.info('Val result of epoch %d / %d acc %.4f uar %.4f f1 %.4f' % (epoch, opt.niter + opt.niter_decay, acc, uar, f1))
         logger.info('\n{}'.format(cm))
 
-        # eval tst set for debugging
-        if opt.verbose:
+        # show test result for debugging
+        if opt.has_test and opt.verbose:
             acc, uar, f1, cm = eval(model, tst_dataset)
             logger.info('Tst result of epoch %d / %d acc %.4f uar %.4f f1 %.4f' % (epoch, opt.niter + opt.niter_decay, acc, uar, f1))
             logger.info('\n{}'.format(cm))
         
-        if uar > best_eval_uar:
-            best_eval_epoch = epoch
-            best_eval_uar = uar
-            best_epoch_acc = acc
-            best_epoch_f1 = f1
-        
+        # record epoch with best result
+        if opt.corpus_name == 'IEMOCAP':
+            if uar > best_eval_uar:  
+                best_eval_epoch = epoch
+                best_eval_uar = uar
+                best_eval_acc = acc
+                best_eval_f1 = f1
+            select_metric = 'uar'
+            best_metric = best_eval_uar
+        elif opt.corpus_name == 'MSP':
+            if f1 > best_eval_f1:
+                best_eval_epoch = epoch
+                best_eval_uar = uar
+                best_eval_acc = acc
+                best_eval_f1 = f1
+            select_metric = 'f1'
+            best_metric = best_eval_f1
+        else:
+            raise ValueError(f'corpus name must be IEMOCAP or MSP, but got {opt.corpus_name}')
+
     # print best eval result
-    logger.info('Best eval epoch %d found with uar %f' % (best_eval_epoch, best_eval_uar))
+    logger.info('Best eval epoch %d found with %s %f' % (best_eval_epoch, select_metric, best_metric))
 
     # test
     if opt.has_test:
@@ -142,9 +146,9 @@ if __name__ == '__main__':
         }, cvNo=opt.cvNo)
     else:
         result_recorder.write_result_to_tsv({
-            'acc': best_epoch_acc,
+            'acc': best_eval_acc,
             'uar': best_eval_uar,
-            'f1': best_epoch_f1
+            'f1': best_eval_f1
         }, cvNo=opt.cvNo)
     
     clean_chekpoints(opt.name + '/' + str(opt.cvNo), best_eval_epoch)

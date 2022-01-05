@@ -9,16 +9,21 @@ from models.networks.lstm import LSTMEncoder
 from models.networks.textcnn import TextCNN
 from models.networks.classifier import FcClassifier
 
+''' Implementation of 
+    IMPLICIT FUSION BY JOINT AUDIOVISUAL TRAINING FOR EMOTION RECOGNITION IN MONO MODALITY
+    https://ieeexplore.ieee.org/document/8682773
+'''
 
-class UttFusionModel(BaseModel):
+class ImplFusionModel(BaseModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser.add_argument('--input_dim_a', type=int, default=130, help='acoustic input dim')
         parser.add_argument('--input_dim_l', type=int, default=1024, help='lexical input dim')
         parser.add_argument('--input_dim_v', type=int, default=384, help='visual input dim')
-        parser.add_argument('--embd_size_a', default=128, type=int, help='audio model embedding size')
-        parser.add_argument('--embd_size_l', default=128, type=int, help='text model embedding size')
-        parser.add_argument('--embd_size_v', default=128, type=int, help='visual model embedding size')
+        parser.add_argument('--weight_a', type=float, default=1.0, help='audio loss weight')
+        parser.add_argument('--weight_v', type=float, default=0.3, help='audio loss weight')
+        parser.add_argument('--weight_l', type=float, default=0.3, help='audio loss weight')
+        parser.add_argument('--embd_size', default=128, type=int, help='embedding size for each modality')
         parser.add_argument('--embd_method_a', default='maxpool', type=str, choices=['last', 'maxpool', 'attention'], \
             help='audio embedding method,last,mean or atten')
         parser.add_argument('--embd_method_v', default='maxpool', type=str, choices=['last', 'maxpool', 'attention'], \
@@ -26,7 +31,8 @@ class UttFusionModel(BaseModel):
         parser.add_argument('--cls_layers', type=str, default='128,128', help='256,128 for 2 layers with 256, 128 nodes respectively')
         parser.add_argument('--dropout_rate', type=float, default=0.3, help='rate of dropout')
         parser.add_argument('--bn', action='store_true', help='if specified, use bn layers in FC')
-        parser.add_argument('--modality', type=str, help='which modality to use for model')
+        parser.add_argument('--trn_modality', type=str, help='which modality used for training for model')
+        parser.add_argument('--test_modality', type=str, help='which modality used for testing for model')
         return parser
 
     def __init__(self, opt):
@@ -36,35 +42,40 @@ class UttFusionModel(BaseModel):
         """
         super().__init__(opt)
         # our expriment is on 10 fold setting, teacher is on 5 fold setting, the train set should match
-        self.loss_names = ['CE']
-        self.modality = opt.modality
+        self.loss_names = []
         self.model_names = ['C']
+        self.trn_modality = opt.trn_modality
+        self.test_modality = opt.test_modality
+        assert len(self.test_modality) == 1
         cls_layers = list(map(lambda x: int(x), opt.cls_layers.split(',')))
-        cls_input_size = opt.embd_size_a * int("A" in self.modality) + \
-                         opt.embd_size_v * int("V" in self.modality) + \
-                         opt.embd_size_l * int("L" in self.modality)
-        self.netC = FcClassifier(cls_input_size, cls_layers, output_dim=opt.output_dim, dropout=opt.dropout_rate, use_bn=opt.bn)
+        self.netC = FcClassifier(opt.embd_size, cls_layers, output_dim=opt.output_dim, dropout=opt.dropout_rate, use_bn=opt.bn)
         
         # acoustic model
-        if 'A' in self.modality:
+        if 'A' in self.trn_modality:
             self.model_names.append('A')
-            self.netA = LSTMEncoder(opt.input_dim_a, opt.embd_size_a, embd_method=opt.embd_method_a)
+            self.loss_names.append('CE_A')
+            self.netA = LSTMEncoder(opt.input_dim_a, opt.embd_size, embd_method=opt.embd_method_a)
+            self.weight_a = opt.weight_a
             
         # lexical model
-        if 'L' in self.modality:
+        if 'L' in self.trn_modality:
             self.model_names.append('L')
-            self.netL = TextCNN(opt.input_dim_l, opt.embd_size_l)
+            self.loss_names.append('CE_L')
+            self.netL = TextCNN(opt.input_dim_l, opt.embd_size)
+            self.weight_l = opt.weight_l
             
         # visual model
-        if 'V' in self.modality:
+        if 'V' in self.trn_modality:
             self.model_names.append('V')
-            self.netV = LSTMEncoder(opt.input_dim_v, opt.embd_size_v, opt.embd_method_v)
+            self.loss_names.append('CE_V')
+            self.netV = LSTMEncoder(opt.input_dim_v, opt.embd_size, opt.embd_method_v)
+            self.weight_v = opt.weight_v
             
         if self.isTrain:
             self.criterion_ce = torch.nn.CrossEntropyLoss()
             # initialize optimizers; schedulers will be automatically created by function <BaseModel.setup>.
             paremeters = [{'params': getattr(self, 'net'+net).parameters()} for net in self.model_names]
-            self.optimizer = torch.optim.Adam(paremeters, lr=opt.lr, betas=(opt.beta1, 0.999), weight_decay=opt.weight_decay)
+            self.optimizer = torch.optim.Adam(paremeters, lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer)
             self.output_dim = opt.output_dim
 
@@ -79,39 +90,49 @@ class UttFusionModel(BaseModel):
         Parameters:
             input (dict): include the data itself and its metadata information.
         """
-        if 'A' in self.modality:
+        if 'A' in self.trn_modality:
             self.acoustic = input['A_feat'].float().to(self.device)
-        if 'L' in self.modality:
+        if 'L' in self.trn_modality:
             self.lexical = input['L_feat'].float().to(self.device)
-        if 'V' in self.modality:
+        if 'V' in self.trn_modality:
             self.visual = input['V_feat'].float().to(self.device)
         
         self.label = input['label'].to(self.device)
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""
-        final_embd = []
-        if 'A' in self.modality:
+        modality = self.trn_modality if self.isTrain else self.test_modality
+        if 'A' in modality:
             self.feat_A = self.netA(self.acoustic)
-            final_embd.append(self.feat_A)
+            self.logits_A, _ = self.netC(self.feat_A)
+            self.pred = F.softmax(self.logits_A, dim=-1)
 
-        if 'L' in self.modality:
+        if 'L' in modality:
             self.feat_L = self.netL(self.lexical)
-            final_embd.append(self.feat_L)
+            self.logits_L, _ = self.netC(self.feat_L)
+            self.pred = F.softmax(self.logits_L, dim=-1)
         
-        if 'V' in self.modality:
+        if 'V' in modality:
             self.feat_V = self.netV(self.visual)
-            final_embd.append(self.feat_V)
-        
-        # get model outputs
-        self.feat = torch.cat(final_embd, dim=-1)
-        self.logits, self.ef_fusion_feat = self.netC(self.feat)
-        self.pred = F.softmax(self.logits, dim=-1)
+            self.logits_V, _ = self.netC(self.feat_V)
+            self.pred = F.softmax(self.logits_V, dim=-1)
         
     def backward(self):
         """Calculate the loss for back propagation"""
-        self.loss_CE = self.criterion_ce(self.logits, self.label)
-        loss = self.loss_CE
+        losses = []
+        if 'A' in self.trn_modality:
+            self.loss_CE_A = self.criterion_ce(self.logits_A, self.label) * self.weight_a
+            losses.append(self.loss_CE_A)
+
+        if 'L' in self.trn_modality:
+            self.loss_CE_L = self.criterion_ce(self.logits_L, self.label) * self.weight_l
+            losses.append(self.loss_CE_L)
+            
+        if 'V' in self.trn_modality:
+            self.loss_CE_V = self.criterion_ce(self.logits_V, self.label) * self.weight_v
+            losses.append(self.loss_CE_L)
+            
+        loss = sum(losses)
         loss.backward()
         for model in self.model_names:
             torch.nn.utils.clip_grad_norm_(getattr(self, 'net'+model).parameters(), 0.5)

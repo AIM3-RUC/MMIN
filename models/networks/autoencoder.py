@@ -120,7 +120,7 @@ class ResidualAE(nn.Module):
         decoder_layer.append(self.input_dim)
         for i in range(0, len(decoder_layer)-2):
             all_layers.append(nn.Linear(decoder_layer[i], decoder_layer[i+1]))
-            all_layers.append(nn.ReLU())
+            all_layers.append(nn.ReLU()) # LeakyReLU
             if self.use_bn:
                 all_layers.append(nn.BatchNorm1d(decoder_layer[i]))
             if self.dropout > 0:
@@ -178,7 +178,7 @@ class ResidualUnetAE(nn.Module):
         for i in range(0, len(layers)):
             layer = []
             layer.append(nn.Linear(input_dim, layers[i]))
-            layer.append(nn.ReLU())
+            layer.append(nn.LeakyReLU())
             if self.use_bn:
                 layer.append(nn.BatchNorm1d(layers[i]))
             if self.dropout > 0:
@@ -203,7 +203,7 @@ class ResidualUnetAE(nn.Module):
         for i in range(len(layers)-2, 0, -1):
             layer = []
             layer.append(nn.Linear(layers[i]*self.expand_num, layers[i-1]))
-            layer.append(nn.ReLU())
+            layer.append(nn.LeakyReLU())
             if self.use_bn:
                 layer.append(nn.BatchNorm1d(layers[i] * self.expand_num))
             if self.dropout > 0:
@@ -287,9 +287,6 @@ class SimpleFcAE(nn.Module):
             if self.dropout > 0:
                 all_layers.append(nn.Dropout(self.dropout))
             input_dim = layers[i]
-        # delete the activation layer of the last layer
-        # decline_num = 1 + int(self.use_bn) + int(self.dropout > 0)
-        # all_layers = all_layers[:-decline_num]
         return nn.Sequential(*all_layers)
     
     def get_decoder(self, layers):

@@ -27,7 +27,7 @@ class LSTMEncoder(nn.Module):
         参考这篇博客的实现:
         https://blog.csdn.net/dendi_hust/article/details/94435919
         https://blog.csdn.net/fkyyly/article/details/82501126
-        论文：Hierarchical Attention Networks for Document Classification
+        论文: Hierarchical Attention Networks for Document Classification
         formulation:  lstm_output*softmax(u * tanh(W*lstm_output + Bias)
         W and Bias 是映射函数，其中 Bias 可加可不加
         u 是 attention vector 大小等于 hidden size
@@ -44,11 +44,11 @@ class LSTMEncoder(nn.Module):
                                                     # r_out.transpose(1, 2) => [batch_size, hidden_size, seq_len]
         in_feat = r_out.transpose(1,2)
         embd = F.max_pool1d(in_feat, in_feat.size(2), in_feat.size(2))
-        return embd.squeeze()
+        return embd.squeeze(-1)
 
     def embd_last(self, r_out, h_n):
         #Just for  one layer and single direction
-        return h_n.squeeze()
+        return h_n.squeeze(0)
 
     def forward(self, x):
         '''

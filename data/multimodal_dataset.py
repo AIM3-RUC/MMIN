@@ -19,6 +19,7 @@ class MultimodalDataset(BaseDataset):
         parser.add_argument('--L_type', type=str, help='which lexical feat to use')
         parser.add_argument('--output_dim', type=int, help='how many label types in this dataset')
         parser.add_argument('--norm_method', type=str, choices=['utt', 'trn'], help='how to normalize input comparE feature')
+        parser.add_argument('--corpus_name', type=str, default='IEMOCAP', help='which dataset to use')
         return parser
     
     def __init__(self, opt, set_name):
@@ -32,34 +33,40 @@ class MultimodalDataset(BaseDataset):
         self.set_name = set_name
         pwd = os.path.abspath(__file__)
         pwd = os.path.dirname(pwd)
-        config = json.load(open(os.path.join(pwd, 'config', 'IEMOCAP_config.json')))
+        config = json.load(open(os.path.join(pwd, 'config', f'{opt.corpus_name}_config.json')))
         self.norm_method = opt.norm_method
+        self.corpus_name = opt.corpus_name
         # load feature
         self.A_type = opt.A_type
-        self.all_A = h5py.File(os.path.join(config['feature_root'], 'A', f'{self.A_type}.h5'), 'r')
+        self.all_A = \
+            h5py.File(os.path.join(config['feature_root'], 'A', f'{self.A_type}.h5'), 'r')
         if self.A_type == 'comparE':
             self.mean_std = h5py.File(os.path.join(config['feature_root'], 'A', 'comparE_mean_std.h5'), 'r')
             self.mean = torch.from_numpy(self.mean_std[str(cvNo)]['mean'][()]).unsqueeze(0).float()
             self.std = torch.from_numpy(self.mean_std[str(cvNo)]['std'][()]).unsqueeze(0).float()
+        elif self.A_type == 'comparE_raw':
+            self.mean, self.std = self.calc_mean_std()
+            
         self.V_type = opt.V_type
-        self.all_V = h5py.File(os.path.join(config['feature_root'], 'V', f'{self.V_type}.h5'), 'r')
+        self.all_V = \
+            h5py.File(os.path.join(config['feature_root'], 'V', f'{self.V_type}.h5'), 'r')
         self.L_type = opt.L_type
-        self.all_L = h5py.File(os.path.join(config['feature_root'], 'L', f'{self.L_type}.h5'), 'r')
+        self.all_L = \
+            h5py.File(os.path.join(config['feature_root'], 'L', f'{self.L_type}.h5'), 'r')
         # load target
         label_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_label.npy")
         int2name_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_int2name.npy")
         self.label = np.load(label_path)
-        self.label = np.argmax(self.label, axis=1)
+        if self.corpus_name == 'IEMOCAP':
+            self.label = np.argmax(self.label, axis=1)
         self.int2name = np.load(int2name_path)
-        # in aligned dataset, you should move out Ses03M_impro03_M001
-        # if 'Ses03M_impro03_M001' in self.int2name:
-        #     idx = self.int2name.index('Ses03M_impro03_M001')
-        #     self.int2name.pop(idx)
-        #     self.label = np.delete(self.label, idx, axis=0)
         self.manual_collate_fn = True
 
+        
     def __getitem__(self, index):
-        int2name = self.int2name[index][0].decode()
+        int2name = self.int2name[index]
+        if self.corpus_name == 'IEMOCAP':
+            int2name = int2name[0].decode()
         label = torch.tensor(self.label[index])
         # process A_feat
         A_feat = torch.from_numpy(self.all_A[int2name][()]).float()
@@ -90,6 +97,15 @@ class MultimodalDataset(BaseDataset):
     def normalize_on_trn(self, features):
         features = (features - self.mean) / self.std
         return features
+
+    def calc_mean_std(self):
+        utt_ids = [utt_id for utt_id in self.all_A.keys()]
+        feats = np.array([self.all_A[utt_id] for utt_id in utt_ids])
+        _feats = feats.reshape(-1, feats.shape[2])
+        mean = np.mean(_feats, axis=0)
+        std = np.std(_feats, axis=0)
+        std[std == 0.0] = 1.0
+        return mean, std
 
     def collate_fn(self, batch):
         A = [sample['A_feat'] for sample in batch]

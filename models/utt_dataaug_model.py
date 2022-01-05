@@ -9,8 +9,9 @@ from models.networks.lstm import LSTMEncoder
 from models.networks.textcnn import TextCNN
 from models.networks.classifier import FcClassifier
 
-
-class UttFDataAugModel(BaseModel):
+''' Implement Data augmentation of model fusion
+'''
+class UttDataAugModel(BaseModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser.add_argument('--input_dim_a', type=int, default=130, help='acoustic input dim')
@@ -117,18 +118,6 @@ class UttFDataAugModel(BaseModel):
             self.feat_V_miss = self.netV(self.V_miss)
             final_embd.append(self.feat_V_miss)
         
-        # if 'A' in self.modality:
-        #     self.feat_A = self.netA(self.acoustic)
-        #     final_embd.append(self.feat_A)
-
-        # if 'L' in self.modality:
-        #     self.feat_L = self.netL(self.lexical)
-        #     final_embd.append(self.feat_L)
-        
-        # if 'V' in self.modality:
-        #     self.feat_V = self.netV(self.visual)
-        #     final_embd.append(self.feat_V)
-        
         # get model outputs
         self.feat = torch.cat(final_embd, dim=-1)
         self.logits, self.ef_fusion_feat = self.netC(self.feat)
@@ -140,7 +129,7 @@ class UttFDataAugModel(BaseModel):
         loss = self.loss_CE
         loss.backward()
         for model in self.model_names:
-            torch.nn.utils.clip_grad_norm_(getattr(self, 'net'+model).parameters(), 5.0) # 0.1
+            torch.nn.utils.clip_grad_norm_(getattr(self, 'net'+model).parameters(), 0.5)
 
     def optimize_parameters(self, epoch):
         """Calculate losses, gradients, and update network weights; called in every training iteration"""

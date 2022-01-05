@@ -1,7 +1,7 @@
 import os
 import time
 import numpy as np
-from opts.train_opts import TrainOptions
+from opts.get_opts import Options
 from data import create_dataset, create_dataset_with_args
 from models import create_model
 from utils.logger import get_logger, ResultRecorder
@@ -42,7 +42,7 @@ def eval(model, val_iter, is_save=False, phase='test'):
         np.save(os.path.join(save_dir, '{}_label.npy'.format(phase)), total_label)
     
         # save part results
-        for part_name in ['azz', 'zvz', 'zzl', 'avz', 'azl', 'zvl', 'avl']:
+        for part_name in ['azz', 'zvz', 'zzl', 'avz', 'azl', 'zvl']:
             part_index = np.where(total_miss_type == part_name)
             part_pred = total_pred[part_index]
             part_label = total_label[part_index]
@@ -69,7 +69,7 @@ def clean_chekpoints(expr_name, store_epoch):
             os.remove(os.path.join(root, checkpoint))
 
 if __name__ == '__main__':
-    opt = TrainOptions().parse()                        # get training options
+    opt = Options().parse()                        # get training options
     logger_path = os.path.join(opt.log_dir, opt.name, str(opt.cvNo)) # get logger path
     if not os.path.exists(logger_path):                 # make sure logger path exists
         os.mkdir(logger_path)
@@ -78,15 +78,15 @@ if __name__ == '__main__':
     if not os.path.exists(result_dir):                 # make sure result path exists
         os.mkdir(result_dir)
     
+    total_cv = 10 if opt.corpus_name == 'IEMOCAP' else 12
     recorder_lookup = {                                 # init result recoreder
-        "total": ResultRecorder(os.path.join(result_dir, 'result_total.tsv')),
-        "azz": ResultRecorder(os.path.join(result_dir, 'result_azz.tsv')),
-        "zvz": ResultRecorder(os.path.join(result_dir, 'result_zvz.tsv')),
-        "zzl": ResultRecorder(os.path.join(result_dir, 'result_zzl.tsv')),
-        "avz": ResultRecorder(os.path.join(result_dir, 'result_avz.tsv')),
-        "azl": ResultRecorder(os.path.join(result_dir, 'result_azl.tsv')),
-        "zvl": ResultRecorder(os.path.join(result_dir, 'result_zvl.tsv')),
-        "avl": ResultRecorder(os.path.join(result_dir, 'result_avl.tsv')),
+        "total": ResultRecorder(os.path.join(result_dir, 'result_total.tsv'), total_cv=total_cv),
+        "azz": ResultRecorder(os.path.join(result_dir, 'result_azz.tsv'), total_cv=total_cv),
+        "zvz": ResultRecorder(os.path.join(result_dir, 'result_zvz.tsv'), total_cv=total_cv),
+        "zzl": ResultRecorder(os.path.join(result_dir, 'result_zzl.tsv'), total_cv=total_cv),
+        "avz": ResultRecorder(os.path.join(result_dir, 'result_avz.tsv'), total_cv=total_cv),
+        "azl": ResultRecorder(os.path.join(result_dir, 'result_azl.tsv'), total_cv=total_cv),
+        "zvl": ResultRecorder(os.path.join(result_dir, 'result_zvl.tsv'), total_cv=total_cv),
     }
 
     suffix = '_'.join([opt.model, opt.dataset_mode])    # get logger suffix
@@ -102,9 +102,8 @@ if __name__ == '__main__':
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
     total_iters = 0                # the total number of training iterations
-    best_eval_uar = 0              # record the best eval UAR
     best_eval_epoch = -1           # record the best eval epoch
-    best_eval_acc, best_eval_f1 = 0, 0
+    best_eval_acc, best_eval_uar, best_eval_f1 = 0, 0, 0
 
     for epoch in range(opt.epoch_count, opt.niter + opt.niter_decay + 1):    # outer loop for different epochs; we save the model by <epoch_count>, <epoch_count>+<save_latest_freq>
         epoch_start_time = time.time()  # timer for entire epoch
@@ -124,11 +123,6 @@ if __name__ == '__main__':
                 logger.info('Cur epoch {}'.format(epoch) + ' loss ' + 
                         ' '.join(map(lambda x:'{}:{{{}:.4f}}'.format(x, x), model.loss_names)).format(**losses))
 
-            if total_iters % opt.save_latest_freq == 0:   # cache our latest model every <save_latest_freq> iterations
-                logger.info('saving the latest model (epoch %d, total_iters %d)' % (epoch, total_iters))
-                save_suffix = 'iter_%d' % total_iters if opt.save_by_iter else 'latest'
-                model.save_networks(save_suffix)
-
             iter_data_time = time.time()
         
         if epoch % opt.save_epoch_freq == 0:              # cache our model every <save_epoch_freq> epochs
@@ -145,19 +139,32 @@ if __name__ == '__main__':
         logger.info('\n{}'.format(cm))
         
         # show test result for debugging
-        if opt.verbose:
+        if opt.has_test and opt.verbose:
             acc, uar, f1, cm = eval(model, tst_dataset)
             logger.info('Tst result of epoch %d acc %.4f uar %.4f f1 %.4f' % (epoch, acc, uar, f1))
             logger.info('\n{}'.format(cm))
 
         # record epoch with best result
-        if uar > best_eval_uar:
-            best_eval_epoch = epoch
-            best_eval_uar = uar
-            best_eval_acc = acc
-            best_eval_f1 = f1
+        if opt.corpus_name == 'IEMOCAP':
+            if uar > best_eval_uar:  
+                best_eval_epoch = epoch
+                best_eval_uar = uar
+                best_eval_acc = acc
+                best_eval_f1 = f1
+            select_metric = 'uar'
+            best_metric = best_eval_uar
+        elif opt.corpus_name == 'MSP':
+            if f1 > best_eval_f1:
+                best_eval_epoch = epoch
+                best_eval_uar = uar
+                best_eval_acc = acc
+                best_eval_f1 = f1
+            select_metric = 'f1'
+            best_metric = best_eval_f1
+        else:
+            raise ValueError(f'corpus name must be IEMOCAP or MSP, but got {opt.corpus_name}')
 
-    logger.info('Best eval epoch %d found with uar %f' % (best_eval_epoch, best_eval_uar))
+    logger.info('Best eval epoch %d found with %s %f' % (best_eval_epoch, select_metric, best_metric))
     # test
     if opt.has_test:
         logger.info('Loading best model found on val set: epoch-%d' % best_eval_epoch)

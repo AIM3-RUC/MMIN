@@ -36,6 +36,7 @@ class MMINModel(BaseModel):
         parser.add_argument('--ce_weight', type=float, default=1.0, help='weight of ce loss')
         parser.add_argument('--mse_weight', type=float, default=1.0, help='weight of mse loss')
         parser.add_argument('--cycle_weight', type=float, default=1.0, help='weight of cycle loss')
+        parser.add_argument('--share_weight', action='store_true', help='share weight of forward and backward autoencoders')
         return parser
 
     def __init__(self, opt):
@@ -58,7 +59,11 @@ class MMINModel(BaseModel):
         AE_layers = list(map(lambda x: int(x), opt.AE_layers.split(',')))
         AE_input_dim = opt.embd_size_a + opt.embd_size_v + opt.embd_size_l
         self.netAE = ResidualAE(AE_layers, opt.n_blocks, AE_input_dim, dropout=0, use_bn=False)
-        self.netAE_cycle = ResidualAE(AE_layers, opt.n_blocks, AE_input_dim, dropout=0, use_bn=False)
+        if opt.share_weight:
+            self.netAE_cycle = self.netAE
+            self.model_names.pop(-1)
+        else:
+            self.netAE_cycle = ResidualAE(AE_layers, opt.n_blocks, AE_input_dim, dropout=0, use_bn=False)
         cls_layers = list(map(lambda x: int(x), opt.cls_layers.split(',')))
         cls_input_size = AE_layers[-1] * opt.n_blocks
         self.netC = FcClassifier(cls_input_size, cls_layers, output_dim=opt.output_dim, dropout=opt.dropout_rate, use_bn=opt.bn)
@@ -170,7 +175,7 @@ class MMINModel(BaseModel):
         loss = self.loss_CE + self.loss_mse + self.loss_cycle
         loss.backward()
         for model in self.model_names:
-            torch.nn.utils.clip_grad_norm_(getattr(self, 'net'+model).parameters(), 5)
+            torch.nn.utils.clip_grad_norm_(getattr(self, 'net'+model).parameters(), 1.0)
             
     def optimize_parameters(self, epoch):
         """Calculate losses, gradients, and update network weights; called in every training iteration"""
