@@ -53,6 +53,13 @@ class MultimodalDataset(BaseDataset):
         self.L_type = opt.L_type
         self.all_L = \
             h5py.File(os.path.join(config['feature_root'], 'L', f'{self.L_type}.h5'), 'r')
+            
+        # load dataset in memory
+        if opt.in_mem:
+            self.all_A = self.h5_to_dict(self.all_A)
+            self.all_V = self.h5_to_dict(self.all_V)
+            self.all_L = self.h5_to_dict(self.all_L)
+        
         # load target
         label_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_label.npy")
         int2name_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_int2name.npy")
@@ -62,7 +69,6 @@ class MultimodalDataset(BaseDataset):
         self.int2name = np.load(int2name_path)
         self.manual_collate_fn = True
 
-        
     def __getitem__(self, index):
         int2name = self.int2name[index]
         if self.corpus_name == 'IEMOCAP':
@@ -70,7 +76,7 @@ class MultimodalDataset(BaseDataset):
         label = torch.tensor(self.label[index])
         # process A_feat
         A_feat = torch.from_numpy(self.all_A[int2name][()]).float()
-        if self.A_type == 'comparE':
+        if self.A_type == 'comparE' or self.A_type == 'comparE_raw':
             A_feat = self.normalize_on_utt(A_feat) if self.norm_method == 'utt' else self.normalize_on_trn(A_feat)
         # process V_feat 
         V_feat = torch.from_numpy(self.all_V[int2name][()]).float()
@@ -86,6 +92,12 @@ class MultimodalDataset(BaseDataset):
     
     def __len__(self):
         return len(self.label)
+
+    def h5_to_dict(self, h5f):
+        ret = {}
+        for key in h5f.keys():
+            ret[key] = h5f[key][()]
+        return ret
     
     def normalize_on_utt(self, features):
         mean_f = torch.mean(features, dim=0).unsqueeze(0).float()
@@ -125,6 +137,7 @@ class MultimodalDataset(BaseDataset):
             'lengths': lengths,
             'int2name': int2name
         }
+
 
 if __name__ == '__main__':
     class test:

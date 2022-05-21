@@ -1,6 +1,6 @@
 {
     "data_root": "/data6/lrc/MSP-IMPROV",
-    "target_root": "/data7/lrc/MSP-IMPROV_features_2021/target",
+    "target_root": "/data9/lrc/hand_over/MMIN_project/dataset/MSP-IMPROV_features_2021/target",
     "total_cv": 12,
-    "feature_root": "/data7/lrc/MSP-IMPROV_features_2021"
+    "feature_root": "/data9/lrc/hand_over/MMIN_project/dataset/MSP-IMPROV_features_2021"
 }

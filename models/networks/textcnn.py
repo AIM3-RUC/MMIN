@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 
 class TextCNN(nn.Module):
-    def __init__(self, input_dim, emb_size=128, in_channels=1, out_channels=128, kernel_heights=[3,4,5], dropout=0.5):
+    def __init__(self, input_dim, embd_size=128, in_channels=1, out_channels=128, kernel_heights=[3,4,5], dropout=0.5):
         super().__init__()
         '''
         cat((conv1-relu+conv2-relu+conv3-relu)+maxpool) + dropout, and to trans
@@ -14,7 +14,7 @@ class TextCNN(nn.Module):
         self.conv3 = nn.Conv2d(in_channels, out_channels, (kernel_heights[2], input_dim), stride=1, padding=0)
         self.dropout = nn.Dropout(dropout)
         self.embd = nn.Sequential(
-            nn.Linear(len(kernel_heights)*out_channels, emb_size),
+            nn.Linear(len(kernel_heights)*out_channels, embd_size),
             nn.ReLU(inplace=True),
         )
 

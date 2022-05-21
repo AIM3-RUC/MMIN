@@ -14,3 +14,4 @@ auto/tmp
 *.pyc
 preprocess/.tmp
 preprocess/smile.log
+record*

@@ -14,7 +14,7 @@ cmd="python train_baseline.py --dataset_mode=multimodal --corpus_name=MSP
 --V_type=denseface --input_dim_v=342 --embd_size_v=128  --embd_method_v=maxpool
 --L_type=bert_large --input_dim_l=1024 --embd_size_l=128
 --output_dim=4 --cls_layers=128,128 --dropout_rate=0.3
---niter=10 --niter_decay=10 --verbose --beta1=0.9
+--niter=10 --niter_decay=10 --in_mem --beta1=0.9
 --batch_size=64 --lr=5e-4 --run_idx=$run_idx
 --name=MSP_baseline --suffix={modality}_run{run_idx} --has_test
 --cvNo=$i"

@@ -1,6 +1,6 @@
 {
     "data_root": "/data3/lrc/IEMOCAP_full_release/",
-    "target_root": "/data7/lrc/IEMOCAP_features_2021/target",
+    "target_root": "/data9/lrc/hand_over/MMIN_project/dataset/IEMOCAP_features_2021/target",
     "total_cv": 10,
-    "feature_root": "/data7/lrc/IEMOCAP_features_2021"
+    "feature_root": "/data9/lrc/hand_over/MMIN_project/dataset/IEMOCAP_features_2021"
 }

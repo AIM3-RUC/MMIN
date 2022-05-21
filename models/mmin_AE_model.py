@@ -9,12 +9,12 @@ from models.networks.fc import FcEncoder
 from models.networks.lstm import LSTMEncoder
 from models.networks.textcnn import TextCNN
 from models.networks.classifier import FcClassifier
-from models.networks.autoencoder import ResidualAE
+from models.networks.autoencoder import ResidualAE, SimpleFcAE
 from models.utt_fusion_model import UttFusionModel
 from .utils.config import OptConfig
 
 
-class MMINModel(BaseModel):
+class MMINAEModel(BaseModel):
     @staticmethod
     def modify_commandline_options(parser, is_train=True):
         parser.add_argument('--input_dim_a', type=int, default=130, help='acoustic input dim')
@@ -28,7 +28,6 @@ class MMINModel(BaseModel):
         parser.add_argument('--embd_method_v', default='maxpool', type=str, choices=['last', 'maxpool', 'attention'], \
             help='visual embedding method,last,mean or atten')
         parser.add_argument('--AE_layers', type=str, default='128,64,32', help='256,128 for 2 layers with 256, 128 nodes respectively')
-        parser.add_argument('--n_blocks', type=int, default=3, help='number of AE blocks')
         parser.add_argument('--cls_layers', type=str, default='128,128', help='256,128 for 2 layers with 256, 128 nodes respectively')
         parser.add_argument('--dropout_rate', type=float, default=0.3, help='rate of dropout')
         parser.add_argument('--bn', action='store_true', help='if specified, use bn layers in FC')
@@ -58,14 +57,14 @@ class MMINModel(BaseModel):
         # AE model
         AE_layers = list(map(lambda x: int(x), opt.AE_layers.split(',')))
         AE_input_dim = opt.embd_size_a + opt.embd_size_v + opt.embd_size_l
-        self.netAE = ResidualAE(AE_layers, opt.n_blocks, AE_input_dim, dropout=0, use_bn=False)
+        self.netAE = SimpleFcAE(AE_layers, AE_input_dim, dropout=0, use_bn=False)
         if opt.share_weight:
             self.netAE_cycle = self.netAE
             self.model_names.pop(-1)
         else:
-            self.netAE_cycle = ResidualAE(AE_layers, opt.n_blocks, AE_input_dim, dropout=0, use_bn=False)
+            self.netAE_cycle = SimpleFcAE(AE_layers, AE_input_dim, dropout=0, use_bn=False)
         cls_layers = list(map(lambda x: int(x), opt.cls_layers.split(',')))
-        cls_input_size = AE_layers[-1] * opt.n_blocks
+        cls_input_size = AE_layers[-1]
         self.netC = FcClassifier(cls_input_size, cls_layers, output_dim=opt.output_dim, dropout=opt.dropout_rate, use_bn=opt.bn)
 
         if self.isTrain:
@@ -143,6 +142,7 @@ class MMINModel(BaseModel):
             self.A_miss = acoustic
             self.V_miss = visual
             self.L_miss = lexical
+
 
     def forward(self):
         """Run forward pass; called by both functions <optimize_parameters> and <test>."""

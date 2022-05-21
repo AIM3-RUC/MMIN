@@ -42,13 +42,13 @@ def eval(model, val_iter, is_save=False, phase='test'):
     return acc, uar, f1, cm
 
 def clean_chekpoints(expr_name, store_epoch):
-    root = os.path.join('checkpoints', expr_name)
+    root = os.path.join(opt.checkpoints_dir, expr_name)
     for checkpoint in os.listdir(root):
         if not checkpoint.startswith(str(store_epoch)+'_') and checkpoint.endswith('pth'):
             os.remove(os.path.join(root, checkpoint))
 
 if __name__ == '__main__':
-    opt = Options().parse()                        # get training options
+    opt = Options().parse()                             # get training options
     logger_path = os.path.join(opt.log_dir, opt.name, str(opt.cvNo)) # get logger path
     if not os.path.exists(logger_path):                 # make sure logger path exists
         os.mkdir(logger_path)

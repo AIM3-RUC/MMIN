@@ -38,8 +38,8 @@ class MultimodalMissDataset(BaseDataset):
         self.corpus_name = opt.corpus_name
         # load feature
         self.A_type = opt.A_type
-        self.all_A = self.h5_to_dict(
-            h5py.File(os.path.join(config['feature_root'], 'A', f'{self.A_type}.h5'), 'r'))
+        self.all_A = \
+            h5py.File(os.path.join(config['feature_root'], 'A', f'{self.A_type}.h5'), 'r')
         if self.A_type == 'comparE':
             self.mean_std = h5py.File(os.path.join(config['feature_root'], 'A', 'comparE_mean_std.h5'), 'r')
             self.mean = torch.from_numpy(self.mean_std[str(cvNo)]['mean'][()]).unsqueeze(0).float()
@@ -48,11 +48,18 @@ class MultimodalMissDataset(BaseDataset):
             self.mean, self.std = self.calc_mean_std()
             
         self.V_type = opt.V_type
-        self.all_V = self.h5_to_dict(
-            h5py.File(os.path.join(config['feature_root'], 'V', f'{self.V_type}.h5'), 'r'))
+        self.all_V = \
+            h5py.File(os.path.join(config['feature_root'], 'V', f'{self.V_type}.h5'), 'r')
         self.L_type = opt.L_type
-        self.all_L = self.h5_to_dict(
-            h5py.File(os.path.join(config['feature_root'], 'L', f'{self.L_type}.h5'), 'r'))
+        self.all_L = \
+            h5py.File(os.path.join(config['feature_root'], 'L', f'{self.L_type}.h5'), 'r')
+        
+        # load dataset in memory
+        if opt.in_mem:
+            self.all_A = self.h5_to_dict(self.all_A)
+            self.all_V = self.h5_to_dict(self.all_V)
+            self.all_L = self.h5_to_dict(self.all_L)
+            
         # load target
         label_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_label.npy")
         int2name_path = os.path.join(config['target_root'], f'{cvNo}', f"{set_name}_int2name.npy")
@@ -98,8 +105,9 @@ class MultimodalMissDataset(BaseDataset):
             miss_type = self.miss_type[index]
         else:
             feat_idx = index
-            missing_index = torch.tensor(random.choice(self.missing_index)).long()
-            miss_type = random.choice(self.miss_type)
+            _miss_i = random.choice(list(range(len(self.missing_index))))
+            missing_index = torch.tensor(self.missing_index[_miss_i]).long()
+            miss_type = self.miss_type[_miss_i]
         
         int2name = self.int2name[feat_idx]
         if self.corpus_name == 'IEMOCAP':
