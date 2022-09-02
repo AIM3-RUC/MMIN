@@ -47,6 +47,10 @@ Baidu Yun Link
 IEMOCAP A V L modality Features
 链接: https://pan.baidu.com/s/1WmuqNlvcs5XzLKfz5i4iqQ 提取码: gn6w 
 
+Google Drive Link
+https://drive.google.com/file/d/1X5wjY-eMnLPV2qkFaaRi9ZPkrMcCAv7Q/view?usp=sharing
+
+
 # License
 MIT license. 
 
