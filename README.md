@@ -50,6 +50,9 @@ IEMOCAP A V L modality Features
 Google Drive Link
 https://drive.google.com/file/d/1X5wjY-eMnLPV2qkFaaRi9ZPkrMcCAv7Q/view?usp=sharing
 
+Baidu Yun Link
+MSP A V L modality Features
+链接: https://pan.baidu.com/s/17E44x84pdR2AQIts0aJfKg 提取码: 6dzq
 
 # License
 MIT license. 
